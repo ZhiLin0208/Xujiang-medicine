@@ -1,0 +1,59 @@
+---
+title: "biao7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(table1)
+library(sjPlot)
+```
+
+```{r}
+data = read_xlsx('./data/军人列入其他.xlsx')
+names(data)
+```
+
+#表7
+```{r}
+glm2.data = data %>% 
+  select('7、您是否接受过旴江医学治疗？','9、您的家人是否接受过旴江医学治疗？','10、您觉得旴江医学能治好您的病吗？（认可度）','3、您听说过旴江医学吗？','17、您的性别','19、您的籍贯是','20、您的文化程度','21、您的职业','18、您的年龄','23、您所就医的医院是','1、您所在的科室是？','22、您的户口类型','11、未来的治疗是否会（或继续）选择旴江医学？（认可度）')
+colnames(glm2.data) = c('患者本人是否接受过旴江医学治疗','患者家属是否接受过旴江医学治疗','患者觉得旴江医学能否治好病','是否听说过旴江医学','性别','籍贯','文化程度','职业','年龄','就诊医院类型','就诊科室','户口类型','未来的治疗是否会选择旴江医学')
+glm2.data = glm2.data %>%
+  mutate(
+    籍贯 = ifelse(str_detect(籍贯, "其他"), "其他", "江西省"),
+    文化程度=factor(文化程度,levels=c('高中、技工学校(技校)、中等专业学校(中专)或中等技术学校(中技)及以下','大学本科、大学专科(大专)或专科院校及以上')),
+    年龄=factor(年龄,levels=c('1','2','3'))
+  )
+table1(~性别+籍贯+户口类型+文化程度+职业+年龄+就诊医院类型+就诊科室+是否听说过旴江医学+患者家属是否接受过旴江医学治疗+患者觉得旴江医学能否治好病+未来的治疗是否会选择旴江医学 | 患者本人是否接受过旴江医学治疗,data=glm2.data,overall="全部")
+
+```
+
+#算卡方
+```{r}
+table = matrix(c(
+43 ,9 ,74 ,6 ,181,40,61 ,11
+),ncol = 2, byrow = TRUE)
+chisq.test(table)
+
+
+table = matrix(c(
+126,8 ,50 ,4 ,71 ,18,112,36
+),ncol = 2, byrow = TRUE)
+fisher.test(table,simulate.p.value=TRUE)
+```
+
+#多因素分析
+```{r}
+glm2.data = glm2.data %>%
+ mutate(`患者本人是否接受过旴江医学治疗` = factor(ifelse(`患者本人是否接受过旴江医学治疗`== '是', 1,0)))
+glm2.fit = glm(formula = `患者本人是否接受过旴江医学治疗` ~
+                 性别+籍贯+户口类型+文化程度+年龄+就诊医院类型+就诊科室+是否听说过旴江医学+患者家属是否接受过旴江医学治疗+患者觉得旴江医学能否治好病+未来的治疗是否会选择旴江医学, data = glm2.data, family = binomial(link = "logit"))
+summary(glm2.fit)
+tab_model(glm2.fit)
+
+
+```
+
