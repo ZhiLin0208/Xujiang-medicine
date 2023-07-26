@@ -1,0 +1,106 @@
+---
+title: "2nd_logistic"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+# Import data
+
+```{r}
+#读取数据，使其成为r里的数据框(dataframe)
+data = read_xlsx('./data/目的4 患者对旴江医学相关证据认可度调查问卷-3.xlsx',sheet = 1)
+
+# 获取数据框的列名，对应的是题目名，方便随后参考
+names(data)
+```
+
+
+# clean data
+
+```{r}
+glm.data = data %>% select(`3、您听说过旴江医学吗？`,`17、您的性别`, `19、您的籍贯是`, `20、您的文化程度`, `22、您的户口类型`, `18、您的年龄`, `21、您的职业`, `23、您所就医的医院是`, `1、您所在的科室是？`)
+
+colnames(glm.data) = c("听说过旴江医学", "性别", "籍贯", "文化", "户口", "年龄", "职业", "医院", "科室")
+
+glm.data = glm.data %>%
+  mutate(籍贯 = ifelse(str_detect(籍贯, "其他"), "其他", "江西省"),
+         医院 = ifelse(str_detect(医院, "中医"), "中医院", "综合医院"),
+         文化 = factor(文化, levels = c("初中及其以下",
+                                    "高中、技工学校（技校）、中等专业学校（中专）或中等技术学校（中技）",
+                                    "大学本科、大学专科或专科院校",
+                                    "研究生及其以上")),
+         年龄 = factor(年龄, c("0～19", "20～29", "30～39", "40～49", "50～59", "60～64", "65～", "缺失")))
+```
+
+# modeling
+
+```{r}
+# logistic 属于 glm - general linear regression
+
+# formula - 公式 y ~ x
+# family - 使用哪个link function（连接函数）, logistic使用的连接函数是logit(p) = log(p/(1-p)): binomial()
+# data - 你用的数据
+
+#调整结局 到 0\1
+glm.data = glm.data %>%
+  #filter(`年龄` != "缺失") %>%
+  mutate(`听说过旴江医学` = ifelse(`听说过旴江医学` == "听说过", 1, 0),
+         `年龄` = dplyr::case_when(`年龄` == "0～19" ~ 1,
+                          `年龄` == "20～29" | `年龄` ==  "30～39" ~ 2,
+                          `年龄` == "40～49" | `年龄` ==  "50～59" | `年龄` ==  "60～64"~ 3,
+                        `年龄` == "65～" ~ 4,
+                        `年龄` == "缺失" ~ 5),
+         `年龄` = ifelse(`年龄` == 5, NA, `年龄`),
+         `年龄` = factor(年龄))
+
+
+unique(glm.data$年龄)
+
+# 拟合模型
+glm.fit = glm(formula = `听说过旴江医学` ~ 性别 + 医院 + 户口,  data = glm.data, family = binomial(link = "logit"))
+summary(glm.fit)
+
+# 看混杂
+glm.fit = glm(formula = `听说过旴江医学` ~  医院 + 户口,  data = glm.data, family = binomial(link = "logit"))
+summary(glm.fit)
+
+
+
+# 看年龄
+glm.fit = glm(formula = `听说过旴江医学` ~  年龄,  data = glm.data, family = binomial(link = "logit"))
+
+
+coef(summary(glm.fit))
+
+names(glm.data)
+# 图
+
+
+glm.data %>% 
+  group_by(`年龄`) %>%
+  summarise(count = n())
+
+age_trend %>% 
+  ggplot(aes(x = `年龄`, y = count, color = factor(`听说过旴江医学`))) +
+  geom_point() +
+  geom_line(aes(group = factor(`听说过旴江医学`)))
+
+
+# 
+coef(summary(glm.fit))[,c(1,4)]
+# 求OR
+exp(coef(summary(glm.fit))[,1])
+
+# 安装并导入 sjPlot
+library(sjPlot)
+tab_model(glm.fit)
+
+#install.packages("sjPlot")
+```
+
+

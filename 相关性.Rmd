@@ -1,0 +1,70 @@
+---
+title: "相关性"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(table1)
+library(sjPlot)
+library(RColorBrewer)
+library(corrplot)
+```
+
+
+```{r}
+
+data = read_xlsx('./data/军人列入其他.xlsx')
+names(data)
+```
+
+```{r}
+variables = c(28:31,33,34,3,5, 20, 21,22) # 共计 11个变量
+data.corr = data[,variables]
+names(data.corr)
+```
+
+```{r}
+colnames(data.corr) = c("性别", "年龄", "籍贯", "文化", "户口", "医院", "科室", "是否听说过", "家人接受治疗", "觉得能治好", "未来选择")
+
+data.corr = data.corr %>%
+  mutate(性别 = as.numeric(factor(性别)),
+         籍贯 = as.numeric(factor(籍贯)),
+         文化 = as.numeric(factor(文化), levels = c("高中、技工学校(技校)、中等专业学校(中专)或中等技术学校(中技)及以下","大学本科、大学专科(大专)或专科院校及以上")),
+         户口 = as.numeric(factor(户口)),
+         医院 = as.numeric(factor(医院)),
+         科室 = as.numeric(factor(科室)),
+         是否听说过 = as.numeric(factor(是否听说过)),
+         家人接受治疗 = as.numeric(factor(家人接受治疗)),
+         觉得能治好 = as.numeric(factor(觉得能治好, levels = c("怀疑", "不确定", "相信"))),
+         未来选择 = as.numeric(factor(未来选择))
+         ) %>%
+  filter(!is.na(年龄))
+```
+
+```{r}
+cor.matrix.pearson = cor(data.corr, method = "pearson")
+# 获取矩阵, spearman 相关系数
+cor.matrix.spearman = cor(data.corr, method = "spearman")
+# 获取矩阵, kendall 相关系数
+cor.matrix.kendall = cor(data.corr, method = "kendall")
+```
+
+```{r}
+cor.matrix.pearson %>% knitr::kable()
+cor.matrix.spearman %>% knitr::kable()
+cor.matrix.kendall %>% knitr::kable()
+```
+
+```{r fig.width=7, fig.height=7}
+par(family='STKaiti')
+corrplot.mixed(cor.matrix.pearson, order = 'AOE')
+par(family='STKaiti')
+corrplot.mixed(cor.matrix.spearman, order = 'AOE')
+par(family='STKaiti')
+corrplot.mixed(cor.matrix.kendall, order = 'AOE')
+```
+
+
